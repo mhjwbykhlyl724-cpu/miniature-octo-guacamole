@@ -15,24 +15,23 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Debug files
+      - name: Extract and Build
         run: |
-          pwd
           ls -la
-          echo "--- ZIP CONTENT ---"
-          unzip -l FreeFireSensitivityHelper_Project.zip | head -n 100
-          echo "--- EXTRACT ---"
+          if [ ! -f FreeFireSensitivityHelper_Project.zip ]; then echo "ZIP NOT FOUND!"; exit 1; fi
           unzip -o FreeFireSensitivityHelper_Project.zip -d .
-          echo "--- ALL FILES ---"
+          echo "--- FILES ---"
           find . -maxdepth 4 -type f | head -n 100
-      - name: Build APK
-        run: |
-          PROJECT_DIR=$(find . -name "gradlew" | head -n 1 | xargs dirname)
-          echo "Found gradlew in $PROJECT_DIR"
+          PROJECT_DIR=$(find . -name "settings.gradle*" | head -n 1 | xargs dirname 2>/dev/null)
+          if [ -z "$PROJECT_DIR" ]; then PROJECT_DIR=$(find . -name "gradlew" | head -n 1 | xargs dirname 2>/dev/null); fi
+          if [ -z "$PROJECT_DIR" ]; then PROJECT_DIR=$(find . -name "build.gradle*" | head -n 1 | xargs dirname 2>/dev/null); fi
+          if [ -z "$PROJECT_DIR" ]; then echo "NO ANDROID PROJECT FOUND IN ZIP"; exit 1; fi
+          echo "PROJECT FOUND IN: $PROJECT_DIR"
           cd "$PROJECT_DIR"
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          ls -la
+          if [ -f gradlew ]; then chmod +x gradlew; ./gradlew assembleDebug --stacktrace; else gradle assembleDebug --stacktrace; fi
       - uses: actions/upload-artifact@v4
+        if: success()
         with:
           name: FreeFire-APK
           path: "**/app-debug.apk"
